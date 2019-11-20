@@ -17,56 +17,59 @@ double distance(const Point& p1, const Point& p2) {
 	return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
 
-double closetPointBruteForce(std::vector<Point>::iterator begin_it, std::vector<Point>::iterator end_it, Point*& p1, Point*& p2) {
-	double min_distance = 100000;
+double closetPointBruteForce(std::vector<Point*>::iterator begin_it, std::vector<Point*>::iterator end_it, Point*& p1, Point*& p2) {
+	double min_distance = INFINITY;
 
 	for (auto i = begin_it; i != end_it; ++i) {
 		for (auto j = i + 1; j != end_it; ++j) {
-			if (distance(*i, *j) < min_distance) {
-				min_distance = distance(*i, *j);
-				p1 = &*begin_it + (i - begin_it);
-				p2 = &*begin_it + (j - begin_it);
+			if (distance(**i, **j) < min_distance) {
+				min_distance = distance(**i, **j);
+				p1 = *i;
+				p2 = *j;
 			}
 		}
 	}
 	return min_distance;
 }
 
-
-double closestStrip(std::vector<Point>::iterator it1, std::vector<Point>::iterator it2, Point*& p1, Point*& p2, double d) {
+double closestStrip(std::vector<Point*>::iterator it1, std::vector<Point*>::iterator it2, Point*& p1, Point*& p2, double d) {
 
 	double min = d;
 
-	std::sort(it1, it2, [](Point a, Point b) {
-		return a.getPosition().y > b.getPosition().y;
+	std::sort(it1, it2, [](Point* a, Point* b) {
+		return a->getPosition().y > b->getPosition().y;
 	});
 
 	for (auto i = it1; i != it2; ++i) {
-
 		for (auto j = i + 1; j != it2; ++j) {
-			if (abs(j->getPosition().y - i->getPosition().y) < min) {
+			if (abs((*j)->getPosition().y - (*i)->getPosition().y) < min) {
 
-				if (distance(*i, *j) < min) {
-					min = distance(*i, *j);
-					p1 = &*it1 + (i - it1);
-					p2 = &*it1 + (j - it1);
+				if (distance(**i, **j) < min) {
+					min = distance(**i, **j);
+					p1 = *i;
+					p2 = *j;
 				}
 			}
 		}
 	}
-
 	return min;
 }
 
 
-double closetPointSmart(std::vector<Point>::iterator it1, std::vector<Point>::iterator it2, Point*& p1, Point*& p2) {
+double closetPointSmart(std::vector<Point*>::iterator it1, std::vector<Point*>::iterator it2, Point*& p1, Point*& p2) {
+	// it1 = first point
+	// it2 = memory space after last point
+	// ithalf = half way point (middle if odd, upper middle if even)
 
-
-	std::sort(it1, it2, [](Point a, Point b) {
-		return a.getPosition().x < b.getPosition().x;
+	// Sort by x
+	std::sort(it1, it2, [](Point * a, Point * b) {
+		return a->getPosition().x < b->getPosition().x;
 	});
 
 	int size = it2 - it1;
+	auto ithalf = it1 + size / 2;
+	double min = INFINITY;
+
 	Point* lp1 = nullptr;
 	Point* lp2 = nullptr;
 	Point* rp1 = nullptr;
@@ -75,12 +78,14 @@ double closetPointSmart(std::vector<Point>::iterator it1, std::vector<Point>::it
 	if (size < 4)
 		return closetPointBruteForce(it1, it2, p1, p2);
 
+	// divide into two parts
+	// part 1 : All points up to but not including halfway point
+	// part 2 :  All points from halway point (including) to last point
 	double lmin = closetPointSmart(it1, it1 + size / 2, lp1, lp2);
 	double rmin = closetPointSmart(it1 + size / 2, it2, rp1, rp2);
 
-	double min;
 	if (lmin < rmin) {
-		min = lmin;
+		min = lmin; 
 		p1 = lp1;
 		p2 = lp2;
 	}
@@ -90,21 +95,36 @@ double closetPointSmart(std::vector<Point>::iterator it1, std::vector<Point>::it
 		p2 = rp2;
 	}
 
-	auto first = std::find_if(it1, it2, [it1, size, min](Point a) {
-		return a.getPosition().x >= ((it1 + size / 2)->getPosition().x - min);
-	});
-	auto last = std::find_if(it1, it2, [it1, size, min](Point a) {
-		return a.getPosition().x > ((it1 + size / 2)->getPosition().x + min);
+
+	// Build strip which contains all the points points within distance d of the halway point where d = min
+	double l_band = (**ithalf).getPosition().x - min;
+	double r_band = (**ithalf).getPosition().x + min;
+
+	// Find first point where x is >= lband
+	// Find first point where x >= rband
+	auto first = std::find_if(it1, it2, [l_band](Point* a) {
+		return a->getPosition().x > l_band;
 	});
 
+	auto last = std::find_if(it1, it2, [r_band](Point* a) {
+		return a->getPosition().x > r_band;
+	});
 
-	if (first == last) {
+	// Possibilities
+	// 0 points in strip (skip search): first = last
+	// 1 point in strip (skip search) : first + 1 = last 
+	// 2 or more points in strip
+
+	if (first == last || ((first + 1) == last)) {
+		//std::cout << "Cond1\n";
 		return min;
 	}
 	else {
+		//std::cout << "Cond2\n";
 		Point* strip_p1 = nullptr;
 		Point* strip_p2 = nullptr;
 		double min_strip = closestStrip(first, last, strip_p1, strip_p2, min);
+
 
 		if (min_strip < min) {
 			min = min_strip;
@@ -117,6 +137,13 @@ double closetPointSmart(std::vector<Point>::iterator it1, std::vector<Point>::it
 	return min;
 }
 
+//prouces a random double between 0 and 1
+double dRand() {
+	// rand() produces a random integer between 0 and RAND_MAX
+	return (double)rand() / RAND_MAX;
+}
+
+
 
 int main()
 {
@@ -125,50 +152,57 @@ int main()
 	//srand(time(NULL));
 	srand(9);
 
-	std::vector<Point> point_vector(10000);
-	//std::vector<Point> point_vector(5000); 
-	//std::vector<Point> point_vector(1000);
+	int n_point = 10000;
+	//int n_point = 5000; // Produces bug
+	//int n_point = 1000;
 
-	for (auto& p : point_vector) {
-		p.setRadius(2.5);
-		//p.setFillColor(sf::Color::Black);
-		p.setFillColor(sf::Color(204, 230, 255));
-		p.setPosition(rand() % 751 + 25, rand() % 751 + 25);
+	std::vector<Point> point_vector(n_point);
+	std::vector<Point*> pointer_vector(n_point);
+
+
+
+	for (int i = 0; i < n_point; i++) {
+		point_vector[i].setRadius(2.5);
+		//point_vector[i].setFillColor(sf::Color::Black);
+		point_vector[i].setFillColor(sf::Color(204, 230, 255));
+		point_vector[i].setPosition(dRand() * 750 + 25, dRand() * 750 + 25);
+		//point_vector[i].setPosition(round(dRand() * 750 + 25), round(dRand() * 750 + 25));
+
+		pointer_vector[i] = &point_vector[i];
 	}
 
-	std::sort(point_vector.begin(), point_vector.end(), [](Point a, Point b) {
-		return a.getPosition().x < b.getPosition().x;
-	}); 
+
+	std::sort(pointer_vector.begin(), pointer_vector.end(), [](Point* a, Point* b) {
+		return a->getPosition().x < b->getPosition().x;
+	});
 
 	Point* p1 = nullptr;
 	Point* p2 = nullptr;
+
+	double d1 = closetPointBruteForce(pointer_vector.begin(), pointer_vector.end(), p1, p2);
+
+	std::cout << "Brute force:\n";
+	std::cout << "p1 : " << *p1 << "\n";
+	std::cout << "p2 : " << *p2 << "\n";
+	std::cout << "distance : " << d1 << "\n";
+
+	p1->setFillColor(sf::Color::Yellow);
+	p2->setFillColor(sf::Color::Yellow);
+
+
 	Point* pd1 = nullptr;
 	Point* pd2 = nullptr;
 
+	double d2 = closetPointSmart(pointer_vector.begin(), pointer_vector.end(), pd1, pd2);
+	std::cout << "Divide and Conquer force:\n";
+	std::cout << "p1 : " << *pd1 << "\n";
+	std::cout << "p2 : " << *pd2 << "\n";
+	std::cout << "distance : " << d2 << "\n";
 
 
+	pd1->setFillColor(sf::Color::Red);
+	pd2->setFillColor(sf::Color::Red);
 
-	//double brute = closetPointBruteForce(point_vector.begin(), point_vector.end(), p1, p2);
-
-
-	//p1->setFillColor(sf::Color::Red);
-	//p2->setFillColor(sf::Color::Red);
-	//window.draw(*p1);
-	//window.draw(*p2);
-	//std::cout << "(" << p1->getPosition().x << ", " << p1->getPosition().y << ") -> (" << p2->getPosition().x << ", " << p2->getPosition().y << ")\n";
-
-
-	double divide = closetPointSmart(point_vector.begin(), point_vector.end(), pd1, pd2);
-
-	pd1->setFillColor(sf::Color::Yellow);
-	pd2->setFillColor(sf::Color::Yellow);
-	window.draw(*pd1);
-	window.draw(*pd2);
-
-	std::cout << "(" << pd1->getPosition().x << ", " << pd1->getPosition().y << ") -> (" << pd2->getPosition().x << ", " << pd2->getPosition().y << ")\n";
-
-	//std::cout << "Brute force : " << brute << "\n";
-	std::cout << "DaC force : " << divide << "\n";
 
 	while (window.isOpen())
 	{
@@ -179,20 +213,19 @@ int main()
 				window.close();
 		}
 
-	/*	for (auto p : point_vector) {
+		window.clear(sf::Color(204, 230, 255));
+
+		for (auto p : point_vector) {
 			window.draw(p);
-		}*/
-
-		//window.clear(sf::Color(204, 230, 255)); 
-
-		//p1->setFillColor(sf::Color::Red);
-		//p2->setFillColor(sf::Color::Red);
-		//window.draw(*p1);
-		//window.draw(*p2);
+		}
 
 
+		window.draw(*p1);
+		window.draw(*p2);
+		window.draw(*pd1);
+		window.draw(*pd2);
 
 		window.display();
 	}
 	return 0;
-}
+} 
