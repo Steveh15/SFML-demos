@@ -24,9 +24,8 @@ std::vector<Point*> makePoints(const int & n_points) {
 		p = new Point();
 		p->setRadius(2.5);
 		p->setFillColor(sf::Color::Black);
-		//p->setFillColor(sf::Color(204, 230, 255));
-		p->setPosition(dRand() * 750 + 25, dRand() * 750 + 25);
-		//point_vector[i].setPosition(round(dRand() * 750 + 25), round(dRand() * 750 + 25));
+		p->setPosition(sf::Vector2f(dRand() * 750 + 25, dRand() * 750 + 25));
+		p->setOrigin(sf::Vector2f(2.5,2.5));
 	}
 	std::sort(v.begin(), v.end(), [](Point* a, Point* b) {
 		return a->getPosition().x < b->getPosition().x;
@@ -58,7 +57,6 @@ std::vector<Point*> convexHull(std::vector<Point*>::iterator begin_it, std::vect
 		} else return a->getPosition().y > b->getPosition().y;
 	});
 
-	std::cout << "Lowest point : " << *p0 << "\n";
 	std::sort(begin_it ,  end_it, [p0](Point *a, Point *b) {
 		double a1 = atan2((p0->getPosition().y - a->getPosition().y), (a->getPosition().x - p0->getPosition().x));
 		double a2 = atan2((p0->getPosition().y - b->getPosition().y), (b->getPosition().x - p0->getPosition().x));
@@ -97,11 +95,9 @@ int main()
 	sf::VertexArray chlines;
 	chlines.setPrimitiveType(sf::LineStrip);
 	for (auto p : ch) {
-		std::cout << *p << "\n";
 		p->setFillColor(sf::Color::Red);
 		chlines.append(sf::Vertex(p->getPosition(), sf::Color::Black, sf::Vector2f(100.f, 100.f)));
 	}   
-
 	chlines.append(sf::Vertex(ch[0]->getPosition(), sf::Color::Black, sf::Vector2f(100.f, 100.f)));
 
 	// Closest Pair
