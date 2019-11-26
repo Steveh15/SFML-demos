@@ -18,7 +18,7 @@ double dRand() {
 
 std::vector<Point*> makePoints(const int & n_points) {
 	//srand(time(NULL));
-	srand(14);
+	srand(16);
 	std::vector<Point*> v(n_points);
 	for (auto& p : v){
 		p = new Point();
@@ -53,10 +53,13 @@ double orientation(const Point* p0, const Point* p1, const Point* p2) {
 std::vector<Point*> convexHull(std::vector<Point*>::iterator begin_it, std::vector<Point*>::iterator end_it) {
 
 	Point* p0 = *std::min_element(begin_it, end_it, [](Point* a, Point* b) {
-		return a->getPosition().y > b->getPosition().y;
+		if (a->getPosition().y == b->getPosition().y) {
+			return a->getPosition().x < b->getPosition().x;
+		} else return a->getPosition().y > b->getPosition().y;
 	});
 
-	std::sort(begin_it+1,  end_it, [p0](Point *a, Point *b) {
+	std::cout << "Lowest point : " << *p0 << "\n";
+	std::sort(begin_it ,  end_it, [p0](Point *a, Point *b) {
 		double a1 = atan2((p0->getPosition().y - a->getPosition().y), (a->getPosition().x - p0->getPosition().x));
 		double a2 = atan2((p0->getPosition().y - b->getPosition().y), (b->getPosition().x - p0->getPosition().x));
 		if (a1 < a2) return true;
@@ -82,27 +85,31 @@ std::vector<Point*> convexHull(std::vector<Point*>::iterator begin_it, std::vect
 }
 
 
-
 int main()
 {
 	sf::RenderWindow window(sf::VideoMode(800, 800), "SFML works!");
 	
-	std::vector<Point*> pointer_vector = makePoints(200);
+	std::vector<Point*> pointer_vector = makePoints(250);
 
-
+	// Convex Hull
 	std::vector<Point*> ch = convexHull(pointer_vector.begin(), pointer_vector.end());
 
+	sf::VertexArray chlines;
+	chlines.setPrimitiveType(sf::LineStrip);
 	for (auto p : ch) {
+		std::cout << *p << "\n";
 		p->setFillColor(sf::Color::Red);
-	}
+		chlines.append(sf::Vertex(p->getPosition(), sf::Color::Black, sf::Vector2f(100.f, 100.f)));
+	}   
 
+	chlines.append(sf::Vertex(ch[0]->getPosition(), sf::Color::Black, sf::Vector2f(100.f, 100.f)));
 
+	// Closest Pair
 	Point* pd1 = nullptr;
 	Point* pd2 = nullptr;
 	double d2 = Point::closetPointSmart(pointer_vector.begin(), pointer_vector.end(), pd1, pd2);
 	pd1->setFillColor(sf::Color::Yellow);
 	pd2->setFillColor(sf::Color::Yellow);
-
 
 	while (window.isOpen())
 	{
@@ -114,13 +121,15 @@ int main()
 		}
 
 		window.clear(sf::Color(204, 230, 255));
-
+		
 		for (auto p : pointer_vector) {
 			window.draw(*p);
 		}
 
+		window.draw(chlines);
 		window.display();
 	}
+
 
 
 	// Clear memory;
